@@ -24,6 +24,12 @@ def upscale(x, scale, name=None):
     _, h, w, _ = get_shape(x)
     return resize_nearest_neighbor(x, (h*scale, w*scale), name=name)
 
+def norm_img(image):
+    image = image/127.5 - 1.
+    return image
+
+def denorm_img(norm):
+    return tf.clip_by_value((norm + 1)*127.5, 0, 255)
     
 def encoder(x, z_dim=64, filters=64, blocks=3, name='Encoder', reuse=False):
     with tf.variable_scope(name, reuse=reuse):
