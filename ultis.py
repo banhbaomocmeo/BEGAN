@@ -6,6 +6,9 @@ def conv2d(x, filters, kernel_size=3, strides=1, name=None):
 def elu(x, name=None):
     return tf.nn.elu(x, name=name)
 
+def tanh(x, name=None):
+    return tf.nn.tanh(x, name=name)
+
 def dense(x, units, name=None):
     return tf.layers.dense(x, units, name=name)
 
