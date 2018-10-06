@@ -69,11 +69,12 @@ class BEGAN():
         n_batch = X.shape[0] // batch_size
         id_batch = 0
         batch = None
+        np.random.shuffle(X)
         self.sess.run(tf.global_variables_initializer())
         for i in range(iters):
             if id_batch == n_batch:
                 batch = X[id_batch*batch_size:]
-                X = np.random.shuffle(X)
+                np.random.shuffle(X)
                 id_batch = 0
             else:
                 batch = X[id_batch*batch_size: (id_batch+1)*batch_size]
