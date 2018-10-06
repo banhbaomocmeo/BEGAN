@@ -89,7 +89,7 @@ class BEGAN():
                 summ, g_img, AE_g, AE_x = self.sess.run([self.summary_op, self.g_img, self.AE_g, self.AE_x],
                             feed_dict={self.x: batch, self.z: z}
                         )
-                self.summary_writer.add_summary(summ, i % 100)
+                self.summary_writer.add_summary(summ, i // 100)
                 img = np.concatenate((g_img, AE_g, AE_x), axis=1)
                 cv2.imwrite('./images/iter_{}.jpg'.format(i), np.hstack(img)[:,:,::-1])
 
