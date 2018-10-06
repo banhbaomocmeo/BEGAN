@@ -18,7 +18,7 @@ class BEGAN():
         # x = norm_img(self.x)
         self.z = tf.placeholder(dtype=tf.float32, shape=[None, self.z_dim])
         g_img, self.g_vars = Generator(self.z, self.start_size, self.filters, self.blocks)
-        d_img, self.d_vars, self.embbed = Discriminator(tf.concat([g_img, x], 0), self.z_dim, self.start_size, self.filters, self.blocks)
+        d_img, self.d_vars, self.embbed = Discriminator(tf.concat([g_img, self.x], 0), self.z_dim, self.start_size, self.filters, self.blocks)
         AE_g, AE_x = tf.split(d_img, 2)
 
         self.g_img = denorm_img(g_img)
