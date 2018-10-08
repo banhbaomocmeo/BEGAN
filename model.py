@@ -5,8 +5,10 @@ import cv2
 
 class BEGAN():
     def __init__(self, image_size=64, z_dim=64, gamma=0.5):
+
+        self.lr_update_step = 75000
         self.gamma = gamma
-        self.lr = tf.Variable(initial_value=0.00008, trainable=False, name='anneal_factor')
+        self.lr = tf.Variable(initial_value=0.00008, trainable=False, name='lr')
         self.lambda_k = 0.001
         self.k_t = tf.Variable(initial_value=0., trainable=False, name='anneal_factor')
         self.z_dim = z_dim
@@ -79,12 +81,12 @@ class BEGAN():
             else:
                 batch = X[id_batch*batch_size: (id_batch+1)*batch_size]
                 id_batch += 1
-            z = np.random.normal(size=(batch.shape[0], self.z_dim))
+            z = np.random.uniform(-1, 1, size=(batch.shape[0], self.z_dim))
 
-            _, _, d_loss, g_loss, measure, balance = self.sess.run([self.g_opt, self.d_opt, self.d_loss, self.g_loss, self.measure, self.balance],
+            _, _, d_loss, g_loss, k_t, measure, balance = self.sess.run([self.g_opt, self.d_opt, self.d_loss, self.g_loss, self.k_update, self.measure, self.balance],
                             feed_dict={self.x: batch, self.z: z}
                         )
-            print('iter {} - d_loss: {}, g_loss: {}, measure: {}, balance: {}'.format(i, d_loss, g_loss, measure, balance))
+            print('iter {} - d_loss: {}, g_loss: {}, measure: {}, balance: {}, k_t: {}'.format(i, d_loss, g_loss, measure, balance, k_t))
             if i % 100 == 0:
                 summ, g_img, AE_g, AE_x = self.sess.run([self.summary_op, self.g_img, self.AE_g, self.AE_x],
                             feed_dict={self.x: batch, self.z: z}
@@ -92,6 +94,8 @@ class BEGAN():
                 self.summary_writer.add_summary(summ, i // 100)
                 img = np.concatenate((g_img, AE_g, AE_x), axis=1)
                 cv2.imwrite('./images/iter_{}.jpg'.format(i), np.hstack(img)[:,:,::-1])
+            if i % self.lr_update_step == self.lr_update_step - 1:
+                self.sess.run(self.lr_update)
 
 
                 
