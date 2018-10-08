@@ -6,6 +6,7 @@ import cv2
 class BEGAN():
     def __init__(self, image_size=64, z_dim=64, gamma=0.5):
 
+        self.save_step = 1000
         self.lr_update_step = 75000
         self.gamma = gamma
         self.lr = tf.Variable(initial_value=0.00008, trainable=False, name='lr')
@@ -87,15 +88,18 @@ class BEGAN():
                             feed_dict={self.x: batch, self.z: z}
                         )
             print('iter {} - d_loss: {}, g_loss: {}, measure: {}, balance: {}, k_t: {}'.format(i, d_loss, g_loss, measure, balance, k_t))
-            if i % 100 == 0:
+            if i % self.save_step == self.save_step - 1: 
+                self.saver.save(self.sess, "./model/model.ckpt")               
                 summ, g_img, AE_g, AE_x = self.sess.run([self.summary_op, self.g_img, self.AE_g, self.AE_x],
                             feed_dict={self.x: batch, self.z: z}
                         )
-                self.summary_writer.add_summary(summ, i // 100)
+                self.summary_writer.add_summary(summ, i // self.save_step)
                 img = np.concatenate((g_img, AE_g, AE_x), axis=1)
                 cv2.imwrite('./images/iter_{}.jpg'.format(i), np.hstack(img)[:,:,::-1])
             if i % self.lr_update_step == self.lr_update_step - 1:
                 self.sess.run(self.lr_update)
+            
+                
 
 
                 
