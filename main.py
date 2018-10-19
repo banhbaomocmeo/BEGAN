@@ -10,4 +10,4 @@ model.build_interpolated_model()
 model.init_var()
 model.fit(X)
 
-model.train_interpolation(X[:32],X[32:64])
+model.train_interpolation(X[:16],X[16:32])

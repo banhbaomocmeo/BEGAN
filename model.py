@@ -87,7 +87,7 @@ class BEGAN():
         
         self.sess.run(tf.global_variables_initializer())
 
-    def fit(self, X, iters=200000):
+    def fit(self, X, iters=3000):
         n_batch = X.shape[0] // self.batch_size
         id_batch = 0
         batch = None
@@ -108,7 +108,7 @@ class BEGAN():
                         )
             print('iter {} - d_loss: {}, g_loss: {}, measure: {}, balance: {}, k_t: {}'.format(i, d_loss, g_loss, measure, balance, k_t))
             if i % self.save_step == self.save_step - 1: 
-                self.saver.save(self.sess, "./model/model.ckpt")               
+                self.saver.save(self.sess, "./model/model.ckpt", global_step=i)               
                 summ, g_img, AE_g, AE_x = self.sess.run([self.summary_op, self.g_img, self.AE_g, self.AE_x],
                             feed_dict={self.x: batch, self.z: z}
                         )
@@ -118,13 +118,13 @@ class BEGAN():
             if i % self.lr_update_step == self.lr_update_step - 1:
                 self.sess.run(self.lr_update)
             
-    def train_interpolation(self, batch1, batch2, step=0, train_epoch=500, root_path='./interp'):
+    def train_interpolation(self, batch1, batch2, step=0, train_epoch=5000, root_path='./interp'):
         batch_size = len(batch1)
-        self.sess.run(self.z_r_update)
+        self.sess.run(self.z_r_update, {self.x: np.vstack([batch1, batch2])})
         for i in range(train_epoch):
             z_r_loss, _ = self.sess.run([self.z_r_loss, self.z_r_optim], {self.x: np.vstack([batch1, batch2])})
+        self.saver.save(self.sess, "./interp/model/model.ckpt", global_step=i)
         z = self.sess.run(self.z_r)
-
         z1, z2 = z[:batch_size], z[batch_size:]
 
         generated = []
@@ -134,8 +134,8 @@ class BEGAN():
             generated.append(z_decode)
 
         generated = np.stack(generated).transpose([1, 0, 2, 3, 4])
-        for idx, img in enumerate(generated):
-            save_image(img, os.path.join(root_path, 'test{}_interp_G_{}.png'.format(step, idx)), nrow=10)
+        #for idx, img in enumerate(generated):
+        #    save_image(img, os.path.join(root_path, 'test{}_interp_G_{}.png'.format(step, idx)), nrow=10)
 
         all_img_num = np.prod(generated.shape[:2])
         batch_generated = np.reshape(generated, [all_img_num] + list(generated.shape[2:]))
