@@ -1,4 +1,9 @@
 import tensorflow as tf 
+import numpy as np
+from PIL import Image
+import math
+
+
 
 def conv2d(x, filters, kernel_size=3, strides=1, name=None):
     return tf.layers.conv2d(x, filters, kernel_size, strides, padding='same', name=name)
@@ -76,3 +81,38 @@ def Generator(z, start_size=8, filters=64, blocks=3, name='Generator', reuse=Fal
     var_list  = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
     return x, var_list 
 
+def slerp(val, low, high):
+    """Code from https://github.com/soumith/dcgan.torch/issues/14"""
+    omega = np.arccos(np.clip(np.dot(low/np.linalg.norm(low), high/np.linalg.norm(high)), -1, 1))
+    so = np.sin(omega)
+    if so == 0:
+        return (1.0-val) * low + val * high # L'Hopital's rule/LERP
+    return np.sin((1.0-val)*omega) / so * low + np.sin(val*omega) / so * high
+
+
+def make_grid(tensor, nrow=8, padding=2,
+              normalize=False, scale_each=False):
+    """Code based on https://github.com/pytorch/vision/blob/master/torchvision/utils.py"""
+    nmaps = tensor.shape[0]
+    xmaps = min(nrow, nmaps)
+    ymaps = int(math.ceil(float(nmaps) / xmaps))
+    height, width = int(tensor.shape[1] + padding), int(tensor.shape[2] + padding)
+    grid = np.zeros([height * ymaps + 1 + padding // 2, width * xmaps + 1 + padding // 2, 3], dtype=np.uint8)
+    k = 0
+    for y in range(ymaps):
+        for x in range(xmaps):
+            if k >= nmaps:
+                break
+            h, h_width = y * height + 1 + padding // 2, height - padding
+            w, w_width = x * width + 1 + padding // 2, width - padding
+
+            grid[h:h+h_width, w:w+w_width] = tensor[k]
+            k = k + 1
+    return grid
+
+def save_image(tensor, filename, nrow=8, padding=2,
+               normalize=False, scale_each=False):
+    ndarr = make_grid(tensor, nrow=nrow, padding=padding,
+                            normalize=normalize, scale_each=scale_each)
+    im = Image.fromarray(ndarr)
+    im.save(filename)

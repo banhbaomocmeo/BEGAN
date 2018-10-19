@@ -2,10 +2,12 @@ from ultis import *
 import tensorflow as tf
 import numpy as np
 import cv2
+import os
 
 class BEGAN():
-    def __init__(self, image_size=64, z_dim=64, gamma=0.5):
+    def __init__(self, image_size=64, z_dim=64, gamma=0.5, batch_size=32):
 
+        self.batch_size = 32
         self.save_step = 1000
         self.lr_update_step = 75000
         self.gamma = gamma
@@ -19,7 +21,8 @@ class BEGAN():
         self.start_size = self.image_size // 2**(self.blocks-1)
         self.x = tf.placeholder(dtype=tf.float32, shape=[None, self.image_size, self.image_size, 3])
         # x = norm_img(self.x)
-        self.z = tf.placeholder(dtype=tf.float32, shape=[None, self.z_dim])
+        self.z = tf.random_uniform(
+                (tf.shape(self.x)[0], self.z_dim), minval=-1.0, maxval=1.0)        
         g_img, self.g_vars = Generator(self.z, self.start_size, self.filters, self.blocks)
         d_img, self.d_vars, self.embbed = Discriminator(tf.concat([g_img, self.x], 0), self.z_dim, self.start_size, self.filters, self.blocks)
         AE_g, AE_x = tf.split(d_img, 2)
@@ -59,28 +62,44 @@ class BEGAN():
         ])
 
 
+        
+    def build_interpolated_model(self):
+        with tf.variable_scope("interpalation") as vs:
+            # Extra ops for interpolation
+            z_optimizer = tf.train.AdamOptimizer(0.0001)
 
+            self.z_r = tf.get_variable("z_r", [self.batch_size, self.z_dim], tf.float32)
+            self.z_r_update = tf.assign(self.z_r, self.z)
+
+        G_z_r, _ = Generator(self.z_r, self.start_size, self.filters, self.blocks, reuse=True)
+
+        with tf.variable_scope("interpalation_opt") as vs:
+            self.z_r_loss = tf.reduce_mean(tf.abs(self.x - G_z_r))
+            self.z_r_optim = z_optimizer.minimize(self.z_r_loss, var_list=[self.z_r])
+
+    def init_var(self):
         gpu_options = tf.GPUOptions(allow_growth=True)
         sess_config = tf.ConfigProto(allow_soft_placement=True,
                                     gpu_options=gpu_options)
         self.sess = tf.Session(config=sess_config)
         self.saver = tf.train.Saver()
         self.summary_writer = tf.summary.FileWriter('logs', self.sess.graph)
+        
         self.sess.run(tf.global_variables_initializer())
 
-    def fit(self, X, batch_size=32, iters=500000):
-        n_batch = X.shape[0] // batch_size
+    def fit(self, X, iters=200000):
+        n_batch = X.shape[0] // self.batch_size
         id_batch = 0
         batch = None
         np.random.shuffle(X)
         self.sess.run(tf.global_variables_initializer())
         for i in range(iters):
             if id_batch == n_batch:
-                batch = X[id_batch*batch_size:]
+                batch = X[id_batch*self.batch_size:]
                 np.random.shuffle(X)
                 id_batch = 0
             else:
-                batch = X[id_batch*batch_size: (id_batch+1)*batch_size]
+                batch = X[id_batch*self.batch_size: (id_batch+1)*self.batch_size]
                 id_batch += 1
             z = np.random.uniform(-1, 1, size=(batch.shape[0], self.z_dim))
 
@@ -99,7 +118,29 @@ class BEGAN():
             if i % self.lr_update_step == self.lr_update_step - 1:
                 self.sess.run(self.lr_update)
             
-                
+    def train_interpolation(self, batch1, batch2, step=0, train_epoch=500, root_path='./interp'):
+        batch_size = len(batch1)
+        self.sess.run(self.z_r_update)
+        for i in range(train_epoch):
+            z_r_loss, _ = self.sess.run([self.z_r_loss, self.z_r_optim], {self.x: np.vstack([batch1, batch2])})
+        z = self.sess.run(self.z_r)
+
+        z1, z2 = z[:batch_size], z[batch_size:]
+
+        generated = []
+        for idx, ratio in enumerate(np.linspace(0, 1, 10)):
+            z = np.stack([slerp(ratio, r1, r2) for r1, r2 in zip(z1, z2)])
+            z_decode = self.sess.run(self.g_img, feed_dict={self.z: z})
+            generated.append(z_decode)
+
+        generated = np.stack(generated).transpose([1, 0, 2, 3, 4])
+        for idx, img in enumerate(generated):
+            save_image(img, os.path.join(root_path, 'test{}_interp_G_{}.png'.format(step, idx)), nrow=10)
+
+        all_img_num = np.prod(generated.shape[:2])
+        batch_generated = np.reshape(generated, [all_img_num] + list(generated.shape[2:]))
+        save_image(batch_generated, os.path.join(root_path, 'test{}_interp_G.png'.format(step)), nrow=10)
+
 
 
                 
