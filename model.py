@@ -87,7 +87,7 @@ class BEGAN():
         
         self.sess.run(tf.global_variables_initializer())
 
-    def fit(self, X, iters=3000):
+    def fit(self, X, iters=200000):
         n_batch = X.shape[0] // self.batch_size
         id_batch = 0
         batch = None
@@ -118,12 +118,12 @@ class BEGAN():
             if i % self.lr_update_step == self.lr_update_step - 1:
                 self.sess.run(self.lr_update)
             
-    def train_interpolation(self, batch1, batch2, step=0, train_epoch=5000, root_path='./interp'):
+    def train_interpolation(self, batch1, batch2, no_class, step=0, train_epoch=5000, root_path='./interp'):
         batch_size = len(batch1)
         self.sess.run(self.z_r_update, {self.x: np.vstack([batch1, batch2])})
         for i in range(train_epoch):
             z_r_loss, _ = self.sess.run([self.z_r_loss, self.z_r_optim], {self.x: np.vstack([batch1, batch2])})
-        self.saver.save(self.sess, "./interp/model/model.ckpt", global_step=i)
+        self.saver.save(self.sess, "./interp/model/model.ckpt", global_step=no_class)
         z = self.sess.run(self.z_r)
         z1, z2 = z[:batch_size], z[batch_size:]
 
