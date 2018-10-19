@@ -6,4 +6,8 @@ X = X*2-1
 
 
 model = BEGAN()
+model.build_interpolated_model()
+model.init_var()
 model.fit(X)
+
+model.train_interpolation(X[:32],X[32:64])
