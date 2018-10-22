@@ -8,6 +8,12 @@ import math
 def conv2d(x, filters, kernel_size=3, strides=1, name=None):
     return tf.layers.conv2d(x, filters, kernel_size, strides, padding='same', name=name)
 
+def bnorm(x, training=False, name=None):
+    return tf.layers.batch_normalization(x, training=training, name=name)
+
+def dropout(x, drate=0.5, training=False, name=None):
+    return tf.layers.dropout(x, rate=drate, noise_shape=None, seed=None, training=training, name=name)
+
 def elu(x, name=None):
     return tf.nn.elu(x, name=name)
 
@@ -16,6 +22,10 @@ def tanh(x, name=None):
 
 def dense(x, units, name=None):
     return tf.layers.dense(x, units, name=name)
+
+def smce_lg(x, y, name=None):
+    return tf.nn.softmax_cross_entropy_with_logits_v2(logits=x, labels=y, name=name)
+
 
 def get_shape(tensor):
     shape = tensor.get_shape().as_list()
@@ -47,10 +57,10 @@ def encoder(x, z_dim=64, filters=64, blocks=3, name='Encoder', reuse=False):
             if(i < blocks - 1):
                 x = conv2d(x, n, 3, 2)
                 x = elu(x)
-        x = tf.layers.flatten(x)
-        x = dense(x, z_dim)
+        fl = tf.layers.flatten(x)
+        x = dense(fl, z_dim)
 
-    return x
+    return x, fl
 
 def decoder(z, start_size=8 ,filters=64, blocks=3, name='Decoder', reuse=False):
     with tf.variable_scope(name, reuse=reuse):
@@ -70,16 +80,27 @@ def decoder(z, start_size=8 ,filters=64, blocks=3, name='Decoder', reuse=False):
 
 def Discriminator(x, z_dim=64, start_size=8, filters=64, blocks=3, name='Discriminator', reuse=False):
     with tf.variable_scope(name, reuse=reuse):
-        z = x = encoder(x, z_dim, reuse=reuse)
+        z, fl = x, fl = encoder(x, z_dim, reuse=reuse)
         x = decoder(z, start_size, reuse=reuse)
     var_list  = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
-    return x, var_list, z
+    return x, var_list, fl
 
 def Generator(z, start_size=8, filters=64, blocks=3, name='Generator', reuse=False):
     with tf.variable_scope(name, reuse=reuse):
         x = decoder(z, start_size, reuse=reuse)
     var_list  = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
     return x, var_list 
+
+def Classifier(x, num_class, training=False, name='Classifier', reuse=False):
+    with tf.variable_scope(name, reuse=reuse):
+        x = dense(x, 2048)
+        x = bnorm(x, training)
+        x = elu(x)
+        x = dense(x, num_class)
+    var_list  = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
+    return x, var_list
+        
+
 
 def slerp(val, low, high):
     """Code from https://github.com/soumith/dcgan.torch/issues/14"""
@@ -116,3 +137,8 @@ def save_image(tensor, filename, nrow=8, padding=2,
                             normalize=normalize, scale_each=scale_each)
     im = Image.fromarray(ndarr)
     im.save(filename)
+
+def shuffle(x, y):
+    index = np.arange(x.shape[0])
+    np.random.shuffle(index)
+    return x[index], y[index]
