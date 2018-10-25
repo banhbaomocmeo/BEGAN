@@ -142,3 +142,23 @@ def shuffle(x, y):
     index = np.arange(x.shape[0])
     np.random.shuffle(index)
     return x[index], y[index]
+    
+def make_image_from_batch(X, filename):
+    '''
+    this is document
+    '''
+    batch_size, h, w, c = X.shape
+    no_col = int(np.ceil(np.sqrt(batch_size)))
+    no_row = int(np.ceil(batch_size/no_col))
+    output = np.zeros((int(no_row*h), int(no_col*w), c))
+    for row in range(no_row):
+        for col in range(no_col):
+            if (row*no_col + col) == batch_size:
+                break
+            output[row*h:(row+1)*h,col*w:(col+1)*w] = X[row*no_col + col]
+            
+        if (row*no_col + col) == batch_size:
+                break
+    ndarr = np.squeeze(output).astype(np.uint8)
+    im = Image.fromarray(ndarr)
+    im.save(filename)

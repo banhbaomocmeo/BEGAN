@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 import cv2
 import os
+from interpolations import create_mine_grid
 
 class BEGAN():
     def __init__(self, image_size=64, z_dim=64, gamma=0.5, batch_size=32, num_classes=500, delta=1):
@@ -21,6 +22,9 @@ class BEGAN():
         self.blocks = 3
         self.image_size = image_size
         self.start_size = self.image_size // 2**(self.blocks-1)
+
+    def build_model(self):
+        
         self.x = tf.placeholder(dtype=tf.float32, shape=[None, self.image_size, self.image_size, 3], name='real_inputs')
         self.y = tf.placeholder(dtype=tf.float32, shape=[None, self.num_classes], name='real_labels')
         # x = norm_img(self.x)
@@ -73,24 +77,6 @@ class BEGAN():
             tf.summary.scalar("misc/k_t", self.k_t),
             tf.summary.scalar("misc/balance", self.balance),
         ])
-
-
-        
-    def build_interpolated_model(self):
-        with tf.variable_scope("interpalation") as vs:
-            # Extra ops for interpolation
-            z_optimizer = tf.train.AdamOptimizer(0.0001)
-
-            self.z_r = tf.get_variable("z_r", [self.batch_size, self.z_dim], tf.float32)
-            self.z_r_update = tf.assign(self.z_r, self.z)
-
-        G_z_r, _ = Generator(self.z_r, self.start_size, self.filters, self.blocks, reuse=True)
-
-        with tf.variable_scope("interpalation_opt") as vs:
-            self.z_r_loss = tf.reduce_mean(tf.abs(self.x - G_z_r))
-            self.z_r_optim = z_optimizer.minimize(self.z_r_loss, var_list=[self.z_r])
-
-    def init_var(self):
         gpu_options = tf.GPUOptions(allow_growth=True)
         sess_config = tf.ConfigProto(allow_soft_placement=True,
                                     gpu_options=gpu_options)
@@ -98,7 +84,11 @@ class BEGAN():
         self.saver = tf.train.Saver()
         self.summary_writer = tf.summary.FileWriter('logs', self.sess.graph)
         
+    def init_var(self):
         self.sess.run(tf.global_variables_initializer())
+
+    def load_model(self):
+        self.saver.restore(self.sess, 'model/model.ckpt')
 
     def fit(self, X, Y, iters=200000):
         n_batch = X.shape[0] // self.batch_size
@@ -130,31 +120,21 @@ class BEGAN():
                 cv2.imwrite('./images/iter_{}.jpg'.format(i), np.hstack(img)[:,:,::-1])
             if i % self.lr_update_step == self.lr_update_step - 1:
                 self.sess.run(self.lr_update)
+
+    def generate(self, X, Y, size=5):
+        batch_size = X.shape[0]
+        zs = create_mine_grid(rows=size, cols=size, dim=self.z_dim, space=1, anchors=None, spherical=True, gaussian=True)
+        outputs = []
+        for z in zs:
+            yz = np.concatenate([Y, batch_size*[z]], axis=1)
+            output = self.sess.run(self.g_img, feed_dict={self.yz: yz})
+            # print('>>>>>>output', output.shape)
+            outputs.append(output)
+        outputs = np.array(outputs)
+        # print('>>>>>>outputs', outputs.shape)
+        outputs[0] = (X+1)*127.5 
+        for i in range(batch_size):
+            img = outputs[:, i]
+            # print('>>>>>>img', img.shape)
+            make_image_from_batch(img, './generate/img_{}.jpg'.format(i))
             
-    def train_interpolation(self, batch1, batch2, no_class, step=0, train_epoch=5000, root_path='./interp'):
-        #batch = (X, Y)
-        batch_size = len(batch1[0])
-        self.sess.run(self.z_r_update, {self.x: np.vstack([batch1[0], batch2[0]]), self.y: np.vstack([batch1[1], batch2[1]])})
-        for i in range(train_epoch):
-            z_r_loss, _ = self.sess.run([self.z_r_loss, self.z_r_optim], {self.x: np.vstack([batch1[0], batch2[0]]), self.y: np.vstack([batch1[1], batch2[1]]), self.training: False})
-        self.saver.save(self.sess, "./interp/model/model.ckpt", global_step=no_class)
-        z = self.sess.run(self.z_r)
-        z1, z2 = z[:batch_size], z[batch_size:]
-
-        generated = []
-        for idx, ratio in enumerate(np.linspace(0, 1, 10)):
-            z = np.stack([slerp(ratio, r1, r2) for r1, r2 in zip(z1, z2)])
-            z_decode = self.sess.run(self.g_img, feed_dict={self.z: z})
-            generated.append(z_decode)
-
-        generated = np.stack(generated).transpose([1, 0, 2, 3, 4])
-        #for idx, img in enumerate(generated):
-        #    save_image(img, os.path.join(root_path, 'test{}_interp_G_{}.png'.format(step, idx)), nrow=10)
-
-        all_img_num = np.prod(generated.shape[:2])
-        batch_generated = np.reshape(generated, [all_img_num] + list(generated.shape[2:]))
-        save_image(batch_generated, os.path.join(root_path, 'test{}_interp_G.png'.format(step)), nrow=10)
-
-
-
-                

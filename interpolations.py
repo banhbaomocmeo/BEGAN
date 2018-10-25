@@ -84,4 +84,4 @@ def create_mine_grid(rows, cols, dim, space, anchors, spherical, gaussian, scale
 
     return u_grid
 
-#print(create_mine_grid(rows=16, cols=16, dim=100, space=1, anchors=None, spherical=True, gaussian=True))
+# print(create_mine_grid(rows=11, cols=11, dim=100, space=1, anchors=None, spherical=True, gaussian=True))
