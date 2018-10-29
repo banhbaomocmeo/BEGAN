@@ -62,7 +62,7 @@ def encoder(x, z_dim=64, filters=64, blocks=3, name='Encoder', reuse=False):
 
     return x, fl
 
-def decoder(z, start_size=8 ,filters=64, blocks=3, name='Decoder', reuse=False):
+def decoder(z, start_size=8 ,filters=64, channel=3, blocks=3, name='Decoder', reuse=False):
     with tf.variable_scope(name, reuse=reuse):
         x = dense(z, start_size*start_size*filters)
         x = tf.reshape(x, [-1, start_size, start_size, filters])
@@ -75,19 +75,19 @@ def decoder(z, start_size=8 ,filters=64, blocks=3, name='Decoder', reuse=False):
             if(i < blocks - 1):
                 x = upscale(x, 2)
 
-        x = conv2d(x, 3, 3, 1)
+        x = conv2d(x, channel, 3, 1)
     return x
 
-def Discriminator(x, z_dim=64, start_size=8, filters=64, blocks=3, name='Discriminator', reuse=False):
+def Discriminator(x, z_dim=64, start_size=8, filters=64, channel=3, blocks=3, name='Discriminator', reuse=False):
     with tf.variable_scope(name, reuse=reuse):
         z, fl = x, fl = encoder(x, z_dim, reuse=reuse)
-        x = decoder(z, start_size, reuse=reuse)
+        x = decoder(z, start_size, channel=channel, reuse=reuse)
     var_list  = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
     return x, var_list, fl
 
-def Generator(z, start_size=8, filters=64, blocks=3, name='Generator', reuse=False):
+def Generator(z, start_size=8, filters=64, channel=3, blocks=3, name='Generator', reuse=False):
     with tf.variable_scope(name, reuse=reuse):
-        x = decoder(z, start_size, reuse=reuse)
+        x = decoder(z, start_size, channel=channel, reuse=reuse)
     var_list  = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
     return x, var_list 
 

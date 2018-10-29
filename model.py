@@ -33,8 +33,8 @@ class BEGAN():
         self.z = tf.random_uniform(
                 (tf.shape(self.x)[0], self.z_dim), minval=-1.0, maxval=1.0)    
         self.yz = tf.concat([self.y, self.z], axis=1)    
-        g_img, self.g_vars = Generator(self.yz, self.start_size, self.filters, self.blocks)
-        d_img, self.d_vars, self.fl = Discriminator(tf.concat([g_img, self.x], 0), self.z_dim, self.start_size, self.filters, self.blocks)
+        g_img, self.g_vars = Generator(self.yz, self.start_size, self.filters, self.channel, self.blocks)
+        d_img, self.d_vars, self.fl = Discriminator(tf.concat([g_img, self.x], 0), self.z_dim, self.start_size, self.filters, self.channel, self.blocks)
         AE_g, AE_x = tf.split(d_img, 2)
 
         #classifier
