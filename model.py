@@ -6,7 +6,7 @@ import os
 from interpolations import create_mine_grid
 
 class BEGAN():
-    def __init__(self, image_size=64, z_dim=64, gamma=0.5, batch_size=32, num_classes=500, delta=1):
+    def __init__(self, image_size=64, channel=3, z_dim=64, gamma=0.5, batch_size=32, num_classes=500, delta=1):
 
         self.batch_size = 32
         self.save_step = 1000
@@ -21,11 +21,12 @@ class BEGAN():
         self.filters = 64
         self.blocks = 3
         self.image_size = image_size
+        self.channel = channel
         self.start_size = self.image_size // 2**(self.blocks-1)
 
     def build_model(self):
         
-        self.x = tf.placeholder(dtype=tf.float32, shape=[None, self.image_size, self.image_size, 3], name='real_inputs')
+        self.x = tf.placeholder(dtype=tf.float32, shape=[None, self.image_size, self.image_size, self.channel], name='real_inputs')
         self.y = tf.placeholder(dtype=tf.float32, shape=[None, self.num_classes], name='real_labels')
         # x = norm_img(self.x)
         self.training = tf.placeholder(dtype=tf.bool, shape=None, name='training_flag')
@@ -95,7 +96,6 @@ class BEGAN():
         id_batch = 0
         batch = None
         X, Y = shuffle(X, Y)
-        self.sess.run(tf.global_variables_initializer())
         for i in range(iters):
             if id_batch == n_batch:
                 batch = (X[id_batch*self.batch_size:], Y[id_batch*self.batch_size:])
@@ -117,7 +117,11 @@ class BEGAN():
                         )
                 self.summary_writer.add_summary(summ, i // self.save_step)
                 img = np.concatenate((g_img, AE_g, AE_x), axis=1)
-                cv2.imwrite('./images/iter_{}.jpg'.format(i), np.hstack(img)[:,:,::-1])
+                if self.channel == 3:
+                    img = img[:,:,:,::-1]
+                else:
+                    img = img[:,:,:,0]    
+                cv2.imwrite('./images/iter_{}.jpg'.format(i), np.hstack(img))
             if i % self.lr_update_step == self.lr_update_step - 1:
                 self.sess.run(self.lr_update)
 
