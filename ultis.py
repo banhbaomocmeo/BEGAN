@@ -162,3 +162,8 @@ def make_image_from_batch(X, filename):
     ndarr = np.squeeze(output).astype(np.uint8)
     im = Image.fromarray(ndarr)
     im.save(filename)
+
+def number_to_list_bin(num, length):
+    l1 = [int(digit) for digit in list('{0:b}'.format(num))]
+    l2 = [0 for _ in range(length - len(l1))]
+    return l2 + l1

@@ -87,8 +87,8 @@ class BEGAN():
     def init_var(self):
         self.sess.run(tf.global_variables_initializer())
 
-    def load_model(self):
-        self.saver.restore(self.sess, 'model/model.ckpt')
+    def load_model(self, model):
+        self.saver.restore(self.sess, 'model/model.ckpt-{}'.format(model))
 
     def fit(self, X, Y, iters=200000):
         n_batch = X.shape[0] // self.batch_size
